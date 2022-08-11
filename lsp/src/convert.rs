@@ -38,6 +38,7 @@ pub(crate) fn to_diagnostic(
         severity: match diag.severity() {
             Severity::Error => Some(DiagnosticSeverity::ERROR),
             Severity::Warning => Some(DiagnosticSeverity::WARNING),
+            Severity::Hint => Some(DiagnosticSeverity::HINT),
             Severity::IncompleteSyntax => return None,
         },
         range: to_range(line_map, diag.range),

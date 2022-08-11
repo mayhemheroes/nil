@@ -27,12 +27,16 @@ pub enum DiagnosticKind {
     UnusedBinding,
     UnusedWith,
     UnusedRec,
+
+    // File references.
+    FileNotReferenced,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Severity {
     Error,
     Warning,
+    Hint,
     IncompleteSyntax,
 }
 
@@ -62,6 +66,7 @@ impl Diagnostic {
             | DiagnosticKind::UnusedBinding
             | DiagnosticKind::UnusedWith
             | DiagnosticKind::UnusedRec => Severity::Warning,
+            DiagnosticKind::FileNotReferenced => Severity::Hint,
             DiagnosticKind::SyntaxError(kind) => match kind {
                 SynErrorKind::MultipleRoots
                 | SynErrorKind::PathTrailingSlash
@@ -99,6 +104,8 @@ impl Diagnostic {
             DiagnosticKind::UnusedBinding => "Unused binding",
             DiagnosticKind::UnusedWith => "Unused `with`",
             DiagnosticKind::UnusedRec => "Unused `rec`",
+
+            DiagnosticKind::FileNotReferenced => "File not referenced from entry files via any paths",
         }
         .into()
     }

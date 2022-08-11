@@ -8,6 +8,16 @@ pub(crate) fn diagnostics(db: &dyn DefDatabase, file: FileId) -> Vec<Diagnostic>
 
     let mut diags = Vec::new();
 
+    // If we are not in single-file mode, but this file is not in the reference closure,
+    // complain about it.
+    let source_closure = db.source_root_closure(db.file_source_root(file));
+    if !source_closure.is_empty() && !source_closure.contains(&file) {
+        diags.push(Diagnostic::new(
+            Default::default(),
+            DiagnosticKind::FileNotReferenced,
+        ));
+    }
+
     // Parsing.
     diags.extend(parse.errors().iter().map(|&err| Diagnostic::from(err)));
 
@@ -53,15 +63,20 @@ mod tests {
     use crate::tests::TestDB;
     use expect_test::{expect, Expect};
 
+    #[track_caller]
     fn check(fixture: &str, expect: Expect) {
-        let (db, file_id, []) = TestDB::single_file(fixture).unwrap();
-        let diags = super::diagnostics(&db, file_id);
+        check_file("/default.nix", fixture, expect);
+    }
+
+    #[track_caller]
+    fn check_file(path: &str, fixture: &str, expect: Expect) {
+        let (db, f) = TestDB::from_fixture(fixture).unwrap();
+        let diags = super::diagnostics(&db, f[path]);
         assert!(!diags.is_empty());
         let got = diags
             .iter()
             .map(|d| d.debug_to_string() + "\n")
-            .collect::<Vec<_>>()
-            .join("");
+            .collect::<String>();
         expect.assert_eq(&got);
     }
 
@@ -94,6 +109,26 @@ mod tests {
                 4..5: Unused binding
                 21..28: Unused `with`
                 33..36: Unused `rec`
+            "#]],
+        );
+    }
+
+    #[test]
+    fn file_references() {
+        check_file(
+            "/bar.nix",
+            "
+#- /default.nix
+./foo.nix
+
+#- /foo.nix
+42
+
+#- /bar.nix
+24
+            ",
+            expect![[r#"
+                0..0: File not referenced from entry files via any paths
             "#]],
         );
     }
